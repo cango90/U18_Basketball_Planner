@@ -14,10 +14,10 @@
 <body class="min-h-screen bg-zinc-950 pb-24 text-zinc-100">
   <main id="app" class="mx-auto max-w-3xl p-4"></main>
 <script>
-const URL='https://frpdnwdswwlmbuahzncj.supabase.co';
+const SUPABASE_URL='https://frpdnwdswwlmbuahzncj.supabase.co';
 const KEY='sb_publishable_ODb9F_BySijetTIMU3Yqgg_8f2KEZX-';
 const SEASON='40599b22-b5ad-4185-9855-bc69735ec5a1';
-const db=supabase.createClient(URL,KEY);
+const db=supabase.createClient(SUPABASE_URL,KEY);
 let user,role='player',tab='home',boxscoreEvent=null,events=[],attendance={},duties=[],messages=[],results={},stats=[],roster=[],requests=[];
 const app=document.querySelector('#app');
 const esc=v=>String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
