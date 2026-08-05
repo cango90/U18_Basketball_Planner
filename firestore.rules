@@ -1,0 +1,44 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    // Berk is the initial trainer; every further trainer is explicitly recorded.
+    function coach() {
+      return signedIn() && (request.auth.token.email == 'berk@teamplaner.invalid' ||
+        get(/databases/$(database)/documents/team_memberships/$(request.auth.uid)).data.role in ['coach', 'club_admin']);
+    }
+    function ownAttendance() { return signedIn() && request.resource.data.user_id == request.auth.uid; }
+
+    match /team_memberships/{memberId} {
+      allow read: if signedIn() && (memberId == request.auth.uid || coach());
+      allow create, update, delete: if coach();
+    }
+    match /roster_entries/{entryId} {
+      allow read: if signedIn();
+      allow create, update, delete: if coach();
+    }
+    match /events/{eventId} {
+      allow read: if signedIn();
+      allow create, update, delete: if coach();
+    }
+    match /attendance/{attendanceId} {
+      allow read: if signedIn();
+      allow create: if coach() || ownAttendance();
+      allow update: if coach() || (signedIn() && resource.data.user_id == request.auth.uid && ownAttendance());
+      allow delete: if coach();
+    }
+    match /duty_assignments/{dutyId} {
+      allow read: if signedIn();
+      allow create, delete: if coach();
+      allow update: if coach() || (signedIn() && request.resource.data.assigned_to == request.auth.uid &&
+        resource.data.assigned_to == null && request.resource.data.status == 'claimed');
+    }
+    match /messages/{messageId} {
+      allow read: if signedIn();
+      allow create, update, delete: if coach();
+    }
+    match /game_results/{resultId} { allow read: if signedIn(); allow write: if coach(); }
+    match /player_game_stats/{statId} { allow read, write: if coach(); }
+    match /access_requests/{requestId} { allow read, write: if coach(); }
+  }
+}
