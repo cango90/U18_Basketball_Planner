@@ -4,6 +4,12 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#09090b">
+  <meta name="application-name" content="U18 Teamplaner">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="U18 Teamplaner">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="assets/icons/teamplaner-icon-180.png">
   <title>U18 Basketball · SV Leonberg/Eltingen</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://www.gstatic.com/firebasejs/12.17.1/firebase-app-compat.js"></script>
@@ -22,6 +28,7 @@
     }
     .hero{background:radial-gradient(circle at 100% 0,#38bdf8 0,transparent 36%),linear-gradient(135deg,#172554,#075985);box-shadow:0 22px 55px rgba(14,116,144,.3)}.card{box-shadow:0 12px 34px rgba(0,0,0,.24)}button{transition:.16s transform,opacity}.tap:active{transform:scale(.97)}
     @media (max-width:768px){body.bg-zinc-950{background-image:linear-gradient(180deg,rgba(2,6,23,.72) 0%,rgba(2,6,23,.84) 52%,rgba(2,6,23,.92) 100%),url('assets/images/arena-background.png')!important;background-attachment:fixed!important;background-size:auto 100vh!important;background-position:center center!important}}
+    @media (display-mode:standalone){body{padding-top:env(safe-area-inset-top)}nav{padding-bottom:calc(.5rem + env(safe-area-inset-bottom))!important}}
   </style>
 </head>
 <body class="min-h-screen bg-zinc-950 pb-24 text-zinc-100">
@@ -118,6 +125,8 @@ firebaseAuth.onAuthStateChanged(u=>{user=u?{id:u.uid,email:u.email,displayName:u
 // Current app implementation.
 const FIREBASE={apiKey:'AIzaSyDrlN-kZS2Y2T89lJ7FadIyq1d38HiME_s',authDomain:'teamplanner-svleonbergeltingen.firebaseapp.com',projectId:'teamplanner-svleonbergeltingen',storageBucket:'teamplanner-svleonbergeltingen.firebasestorage.app',messagingSenderId:'1020176566608',appId:'1:1020176566608:web:c74e1e5b4c4dffcc888455'};
 const fb=firebase.initializeApp(FIREBASE,'teamplanner-current'), auth=fb.auth(), store=fb.firestore();
+// Public VAPID key only. The private key remains solely in the future sending service.
+const PUSH_PUBLIC_VAPID_KEY='';
 const SEASON='u18-2026', TEAM='U18 Basketball', POSITIONS=['Point Guard','Shooting Guard','Small Forward','Power Forward','Center'];
 const PLAYERS=['Amir Zemaria-Hakim','Armin Mulahalilovic','Bastian Budde','Benyamin Azizi','Ege Sogukcelik','Hendrik Intveld','Iraklis Anthopoulos','Jonas Luebke','Leonard Dietrich','Niko Andric','Tanju Vdovic','Zois Chrysafoudis'];
 const COACHES=['Berk-Can Çelebi','Tobias Weiss'];
@@ -133,7 +142,7 @@ const maps=place=>'https://www.google.com/search?q='+encodeURIComponent(place);
 const uid=s=>s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'');
 const ACCOUNT_NAMES={berk:'Berk-Can Çelebi',tobias:'Tobias Weiss',amir:'Amir Zemaria-Hakim',armin:'Armin Mulahalilovic',bastian:'Bastian Budde',benyamin:'Benyamin Azizi',ege:'Ege Sogukcelik',hendrik:'Hendrik Intveld',iraklis:'Iraklis Anthopoulos',jonas:'Jonas Luebke',leonard:'Leonard Dietrich',niko:'Niko Andric',tanju:'Tanju Vdovic',zois:'Zois Chrysafoudis'};
 let me=null, membership=null, page='home', detail=null, gameFilter='upcoming', trainingMode='next', dutyFilter='court';
-let events=[], roster=[], responses=[], duties=[], dutyHistory=[], stats=[], results=[], messages=[], profile={}, liveUnsub=[], liveRefreshTimer=null;
+let events=[], roster=[], responses=[], duties=[], dutyHistory=[], stats=[], results=[], messages=[], profile={}, liveUnsub=[], liveRefreshTimer=null, pushRegistration=null, deferredInstallPrompt=null, pushSubscription=null;
 const coach=()=>membership?.role==='coach'||membership?.role==='club_admin'||me?.email==='berk@teamplaner.invalid';
 const admin=()=>membership?.role==='club_admin'||me?.email==='berk@teamplaner.invalid';
 const button='tap rounded-xl px-3 py-2 text-sm font-extrabold';
@@ -144,6 +153,52 @@ const currentName=()=>{const loginId=(me?.email||'').split('@')[0],matched=roste
 const response=(eventId,id=me?.uid)=>responses.find(r=>r.event_id===eventId&&r.user_id===id);
 const responseBadge=s=>s==='yes'?'<span class="text-sky-300">● Dabei</span>':s==='no'?'<span class="text-zinc-400">● Kann nicht</span>':s==='maybe'?'<span class="text-violet-300">● Vielleicht</span>':'<span class="text-cyan-300">● Antwort offen</span>';
 
+const isIOS=()=>/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+const isStandalone=()=>window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true;
+const supportsPush=()=>('serviceWorker' in navigator&&'PushManager' in window&&'Notification' in window);
+function urlBase64ToUint8Array(value){const padding='='.repeat((4-value.length%4)%4),base64=(value+padding).replace(/-/g,'+').replace(/_/g,'/'),raw=atob(base64);return Uint8Array.from([...raw].map(char=>char.charCodeAt(0)))}
+async function registerPwa(){
+  if(!('serviceWorker' in navigator)||location.protocol==='file:')return null;
+  try{pushRegistration=await navigator.serviceWorker.register('./sw.js');return pushRegistration}catch(error){console.warn('Service Worker konnte nicht registriert werden.',error);return null}
+}
+window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();deferredInstallPrompt=event;render()});
+window.addEventListener('appinstalled',()=>{deferredInstallPrompt=null;render()});
+async function installApp(){
+  if(deferredInstallPrompt){deferredInstallPrompt.prompt();await deferredInstallPrompt.userChoice;deferredInstallPrompt=null;render();return}
+  if(isIOS()&&!isStandalone())return alert('In Safari unten auf „Teilen“ tippen und anschließend „Zum Home-Bildschirm“ wählen. Danach kann die App Benachrichtigungen empfangen.');
+  if(!isStandalone())alert('Öffne im Browser-Menü „App installieren“ bzw. „Zum Startbildschirm hinzufügen“.');
+}
+async function readPushSubscription(){
+  if(!pushRegistration||!supportsPush())return null;
+  pushSubscription=await pushRegistration.pushManager.getSubscription();
+  return pushSubscription;
+}
+async function enableNotifications(){
+  if(location.protocol==='file:')return alert('Benachrichtigungen funktionieren nur über die veröffentlichte HTTPS-Adresse – nicht aus einer lokalen Datei.');
+  if(!supportsPush())return alert('Dieser Browser unterstützt keine Web-Push-Benachrichtigungen.');
+  if(isIOS()&&!isStandalone())return alert('Auf iPhone und iPad bitte zuerst die App über Safari zum Home-Bildschirm hinzufügen. Danach kannst du hier Benachrichtigungen aktivieren.');
+  if(!PUSH_PUBLIC_VAPID_KEY)return alert('Der sichere Versanddienst wird gerade eingerichtet. Die App ist bereits installierbar; nach der einmaligen Server-Einrichtung kannst du Benachrichtigungen hier aktivieren.');
+  try{
+    pushRegistration=pushRegistration||await registerPwa();
+    if(!pushRegistration)throw Error('Der Hintergrunddienst konnte nicht gestartet werden.');
+    const permission=await Notification.requestPermission();
+    if(permission!=='granted')return alert('Benachrichtigungen wurden nicht erlaubt. Du kannst sie später in den Browser- oder Systemeinstellungen aktivieren.');
+    const subscription=await pushRegistration.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:urlBase64ToUint8Array(PUSH_PUBLIC_VAPID_KEY)});
+    const json=subscription.toJSON(),deviceId=localStorage.getItem('teamplaner-device-id')||crypto.randomUUID();
+    localStorage.setItem('teamplaner-device-id',deviceId);
+    await store.collection('push_subscriptions').doc(me.uid+'_'+deviceId).set({
+      user_id:me.uid,device_id:deviceId,endpoint:json.endpoint,keys:json.keys||{},active:true,
+      user_agent:navigator.userAgent,created_at:new Date().toISOString(),updated_at:new Date().toISOString()
+    },{merge:true});
+    pushSubscription=subscription;render();
+  }catch(error){console.error(error);alert('Benachrichtigungen konnten nicht aktiviert werden: '+(error.message||'Unbekannter Fehler'));}
+}
+function notificationCard(){
+  const installed=isStandalone(), subscription=pushSubscription, state=subscription?'Aktiv auf diesem Gerät':installed?'App installiert – Benachrichtigungen noch nicht aktiviert':'App installieren für Benachrichtigungen';
+  const copy=subscription?'Du erhältst Team-Mitteilungen auf diesem Gerät.':isIOS()&&!installed?'Für iPhone/iPad: in Safari auf „Teilen“ → „Zum Home-Bildschirm“ tippen.':installed?'Aktiviere anschließend die Benachrichtigungen für Erinnerungen zu Spielen und Trainings.':'Als App installieren; danach können Benachrichtigungen auch bei geschlossener Seite ankommen.';
+  return `<section class="${card} mt-5 border border-sky-400/20 bg-gradient-to-br from-sky-950/55 via-zinc-900 to-zinc-900"><div class="flex items-start justify-between gap-3"><div><p class="text-xs font-black tracking-widest text-sky-300">TEAM-ERINNERUNGEN</p><h2 class="mt-1 text-lg font-black">${state}</h2><p class="mt-1 text-sm text-zinc-400">${copy}</p></div><span class="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-sky-400/15 text-xl">🔔</span></div><div class="mt-4 flex flex-wrap gap-2">${!installed?`<button onclick="installApp()" class="${button} bg-sky-400 text-zinc-950">App installieren</button>`:''}${installed&&!subscription?`<button onclick="enableNotifications()" class="${button} bg-sky-400 text-zinc-950">Benachrichtigungen aktivieren</button>`:''}${subscription?'<span class="rounded-xl bg-emerald-400/15 px-3 py-2 text-sm font-bold text-emerald-300">✓ Aktiv</span>':''}</div></section>`;
+}
+
 function header(){return `<header class="mb-6 flex items-center justify-between gap-3"><div class="flex items-center gap-3"><div class="grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br from-sky-500 to-blue-900 text-xl shadow-lg shadow-sky-950/50">🏀</div><div><p class="text-[10px] font-black tracking-[.2em] text-sky-300">SV LEONBERG/ELTINGEN</p><h1 class="font-black">${TEAM}</h1></div></div><div class="flex items-center gap-2">${admin()?`<button onclick="seed()" class="hidden text-xs font-bold text-sky-300 sm:block">Daten prüfen</button>`:''}<button onclick="signout()" class="text-sm font-bold text-zinc-400">Abmelden</button></div></header>`}
 function nav(){const tabs=[['home','Home'],['games','Spiele'],['training','Training'],['roster','Kader'],['duties','Aufgaben'],['stats','Stats'],...(coach()?[['coach','Trainer']]:[])];return `<nav class="fixed inset-x-0 bottom-0 z-20 border-t border-white/[.08] bg-zinc-950/95 backdrop-blur"><div class="mx-auto flex max-w-4xl justify-around overflow-x-auto px-1 py-2">${tabs.map(([id,label])=>`<button onclick="go('${id}')" class="${button} shrink-0 ${page===id?'bg-sky-400 text-zinc-950':'text-zinc-400'}">${label}</button>`).join('')}</div></nav>`}
 function go(p){page=p;detail=null;render()}
@@ -152,7 +207,7 @@ async function load(){const md=await store.collection('team_memberships').doc(me
 function startLiveUpdates(){if(liveUnsub.length||!me)return;liveUnsub=['events','attendance','duty_assignments','game_results','messages',...(coach()?['duty_history']:[])].map(collection=>store.collection(collection).onSnapshot(()=>{clearTimeout(liveRefreshTimer);liveRefreshTimer=setTimeout(()=>{if(me)load().catch(loadError)},80)}))}
 async function removeAwayCourtDuties(){const away=new Set(events.filter(e=>e.type==='game'&&!e.home).map(e=>e.id)),obsolete=duties.filter(d=>away.has(d.event_id)&&d.category!=='kit_bag');if(!obsolete.length)return false;const batch=store.batch();obsolete.forEach(d=>batch.delete(store.collection('duty_assignments').doc(d.id)));await batch.commit();return true}
 function eventItem(e,compact=false){const game=e.type==='game', yes=responses.filter(r=>r.event_id===e.id&&r.status==='yes').length;return `<button onclick="openEvent('${e.id}')" class="${card} tap block w-full text-left ${compact?'p-4':''}"><div class="flex items-start justify-between gap-3"><div><p class="text-xs font-black tracking-widest ${game?'text-sky-300':'text-violet-300'}">${game?(e.home?'HEIMSPIEL':'AUSWÄRTSSPIEL'):'TRAINING'} · KW ${week(e.starts_at)}</p><h3 class="mt-1 text-lg font-black">${game?(e.home?'vs ':'@ ')+esc(e.opponent):'Training'}</h3><p class="mt-1 text-sm text-zinc-400">${dfmt(e.starts_at)} · ${time(e.starts_at)}</p></div>${game?responseBadge(response(e.id)?.status):''}</div><p class="mt-3 text-sm text-zinc-300">📍 ${esc(e.location)}</p>${game?`<div class="mt-3 flex items-center justify-between text-xs"><span class="font-bold text-sky-200">${yes}/12 zugesagt</span><span class="text-zinc-400">Spiel öffnen →</span></div>`:'<p class="mt-3 text-xs font-bold text-violet-300">Training öffnen →</p>'}</button>`}
-function home(){const up=upcoming(), game=up.find(e=>e.type==='game'), nextFive=up.slice(0,5);let hero=game?gameHero(game):`<section class="${card}"><h2 class="text-xl font-black">Kein kommendes Spiel</h2><p class="mt-1 text-zinc-400">Der Spielplan wird automatisch aktualisiert.</p></section>`;const nbb=`<a target="_blank" rel="noopener" href="https://www.basketball-bund.net/index.jsp?Action=100&Verband=1" class="tap mt-5 flex items-center justify-between rounded-3xl border border-sky-400/20 bg-gradient-to-br from-sky-950/70 via-zinc-900 to-zinc-900 p-5"><div class="flex items-center gap-3"><span class="grid h-11 w-11 place-items-center rounded-2xl bg-sky-400/15 text-xl">🏀</span><div><p class="text-xs font-black tracking-widest text-sky-300">NBB · LEONBERG</p><b class="block">Spielbetrieb & Ergebnisse</b><span class="text-sm text-zinc-400">Tabellen, Spielpläne und Ergebnisse öffnen</span></div></div><span class="text-xl text-sky-300">↗</span></a>`;return hero+nbb+`<section class="mt-5"><div class="mb-3 flex items-center justify-between"><div><h2 class="text-lg font-black">Nächste Termine</h2><p class="text-xs text-zinc-400">Training und Spiel · direkt öffnen</p></div><button onclick="go('training')" class="text-sm font-bold text-violet-300">Training →</button></div><div class="space-y-2">${nextFive.map(e=>eventItem(e,true)).join('')||'<p class="text-zinc-400">Keine kommenden Termine.</p>'}</div></section>`+myStatCards()+news()}
+function home(){const up=upcoming(), game=up.find(e=>e.type==='game'), nextFive=up.slice(0,5);let hero=game?gameHero(game):`<section class="${card}"><h2 class="text-xl font-black">Kein kommendes Spiel</h2><p class="mt-1 text-zinc-400">Der Spielplan wird automatisch aktualisiert.</p></section>`;const nbb=`<a target="_blank" rel="noopener" href="https://www.basketball-bund.net/index.jsp?Action=100&Verband=1" class="tap mt-5 flex items-center justify-between rounded-3xl border border-sky-400/20 bg-gradient-to-br from-sky-950/70 via-zinc-900 to-zinc-900 p-5"><div class="flex items-center gap-3"><span class="grid h-11 w-11 place-items-center rounded-2xl bg-sky-400/15 text-xl">🏀</span><div><p class="text-xs font-black tracking-widest text-sky-300">NBB · LEONBERG</p><b class="block">Spielbetrieb & Ergebnisse</b><span class="text-sm text-zinc-400">Tabellen, Spielpläne und Ergebnisse öffnen</span></div></div><span class="text-xl text-sky-300">↗</span></a>`;return hero+notificationCard()+nbb+`<section class="mt-5"><div class="mb-3 flex items-center justify-between"><div><h2 class="text-lg font-black">Nächste Termine</h2><p class="text-xs text-zinc-400">Training und Spiel · direkt öffnen</p></div><button onclick="go('training')" class="text-sm font-bold text-violet-300">Training →</button></div><div class="space-y-2">${nextFive.map(e=>eventItem(e,true)).join('')||'<p class="text-zinc-400">Keine kommenden Termine.</p>'}</div></section>`+myStatCards()+news()}
 function gameHero(e){const yes=responses.filter(r=>r.event_id===e.id&&r.status==='yes').length, meet=e.meeting_at?time(e.meeting_at):time(e.starts_at), mine=response(e.id)?.status;return `<section class="hero rounded-3xl p-6 text-white"><div class="flex items-start justify-between gap-3"><div><p class="text-xs font-black tracking-[.18em] text-sky-100">NÄCHSTES SPIEL · ${e.home?'HEIM':'AUSWÄRTS'} · KW ${week(e.starts_at)}</p><h2 class="mt-2 text-2xl font-black">${e.home?'vs ':'@ '}${esc(e.opponent)}</h2><p class="mt-2 text-sm text-sky-50">${dfmt(e.starts_at)} · Spielbeginn ${time(e.starts_at)}</p></div><span class="rounded-full bg-black/20 px-3 py-1 text-xs font-black">U18</span></div><div class="mt-5 grid grid-cols-2 gap-3 rounded-2xl bg-black/15 p-4"><div><p class="text-xs font-bold text-sky-100">TREFFZEIT</p><b class="text-lg">${meet}</b></div><a target="_blank" rel="noopener" href="${maps(e.location)}" class="min-w-0"><p class="text-xs font-bold text-sky-100">ORT · GOOGLE</p><b class="block truncate text-sm underline">${esc(e.location)}</b></a></div><div class="mt-5 text-sm"><b>${yes} / 12 zugesagt</b></div><div class="mt-2 h-2 rounded-full bg-black/25"><div class="h-2 rounded-full bg-emerald-400" style="width:${Math.min(100,yes/12*100)}%"></div></div><div class="mt-4 rounded-xl bg-black/15 p-3 text-sm font-bold">${mine?responseBadge(mine):'Deine Rückmeldung fehlt'}</div><button onclick="openEvent('${e.id}')" class="${button} mt-4 w-full bg-white text-zinc-950">Spiel öffnen · Rückmeldung & Aufgaben</button></section>`}
 function myStatCards(){const own=statTotal(me.uid), pps=own.games?Math.round(own.points/own.games*10)/10:'–';return `<section class="mt-5"><h2 class="mb-3 text-lg font-black">Meine Saison</h2><div class="grid grid-cols-3 gap-2"><div class="${card} p-3"><p class="text-xs text-zinc-400">Punkte</p><b class="text-xl text-sky-300">${own.points}</b></div><div class="${card} p-3"><p class="text-xs text-zinc-400">Dreier</p><b class="text-xl text-sky-300">${own.three}</b></div><div class="${card} p-3"><p class="text-xs text-zinc-400">PPS</p><b class="text-xl text-sky-300">${pps}</b></div></div></section>`}
 function news(){return messages.length?`<section class="mt-5"><div class="mb-3 flex items-center justify-between"><h2 class="text-lg font-black">Team-Updates</h2><span class="text-xs text-zinc-500">Neueste zuerst</span></div><div class="space-y-2">${messages.slice(0,3).map(m=>`<div class="${card} p-4 text-sm"><b>${esc(m.body)}</b><p class="mt-2 text-xs text-zinc-500">${dateTime(m.created_at)}</p></div>`).join('')}</div></section>`:''}
@@ -183,7 +238,7 @@ async function savePositions(){const selected=[...document.querySelectorAll('.po
 async function seed(){if(!admin()||!confirm('Kader, Saisonspiele, Trainings und Aufgaben werden geprüft und fehlende Startdaten ergänzt.'))return;const batch=store.batch();PLAYERS.forEach(name=>batch.set(store.collection('roster_entries').doc(uid(name)),{season_id:SEASON,full_name:name,role:'player',active:true,profile_id:null,positions:[]},{merge:true}));COACHES.forEach((name,i)=>batch.set(store.collection('roster_entries').doc(uid(name)),{season_id:SEASON,full_name:name,role:'coach',active:true,profile_id:i===0?me.uid:null,positions:[]},{merge:true}));GAMES.forEach((g,i)=>{let id='game-'+String(i+1).padStart(2,'0'), start=g[0]+'T14:00:00';batch.set(store.collection('events').doc(id),{season_id:SEASON,type:'game',starts_at:start,meeting_at:start,opponent:g[1],location:g[2],home:g[3]},{merge:true});(g[3]?['shotclock','scorer','timekeeper','kit_bag']:['kit_bag']).forEach(category=>batch.set(store.collection('duty_assignments').doc(id+'_'+category),{event_id:id,category,status:'open',assigned_to:null},{merge:true}))});TRAININGS.forEach((date,i)=>batch.set(store.collection('events').doc('training-'+String(i+1).padStart(2,'0')),{season_id:SEASON,type:'training',starts_at:date+'T18:45:00',location:'Georgii-Halle, Leonberg',home:true},{merge:true}));await batch.commit();await load()}
 async function signout(){clearTimeout(liveRefreshTimer);liveUnsub.forEach(unsubscribe=>unsubscribe());liveUnsub=[];await auth.signOut()}
 function loadError(error){console.error(error);app.innerHTML=`<section class="mx-auto mt-20 max-w-md ${card} text-center"><div class="text-4xl">⚠️</div><h1 class="mt-3 text-xl font-black">Daten konnten nicht geladen werden</h1><p class="mt-2 text-sm text-zinc-400">Bitte aktualisiere die Firestore-Regeln im Firebase-Projekt und lade die Seite danach erneut.</p><p class="mt-3 rounded-xl bg-zinc-800 p-3 text-left text-xs text-zinc-400">${esc(error?.message||'Unbekannter Fehler')}</p><button onclick="location.reload()" class="${button} mt-4 bg-sky-400 text-zinc-950">Erneut versuchen</button></section>`}
-auth.onAuthStateChanged(async u=>{me=u?{uid:u.uid,email:u.email}:null;if(!u)return login();try{await load()}catch(error){loadError(error)}});
+auth.onAuthStateChanged(async u=>{me=u?{uid:u.uid,email:u.email}:null;if(!u)return login();try{await load();await registerPwa();await readPushSubscription();render()}catch(error){loadError(error)}});
 </script>
 </body>
 </html>

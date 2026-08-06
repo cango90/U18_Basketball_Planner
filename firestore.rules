@@ -69,6 +69,20 @@ service cloud.firestore {
       allow create, update: if signedIn() && userId == request.auth.uid;
       allow delete: if coach();
     }
+    // Browser endpoints are private device credentials. Trainers choose recipients by
+    // team role later; they never need to see individual endpoint URLs.
+    match /push_subscriptions/{subscriptionId} {
+      allow read: if signedIn() && resource.data.user_id == request.auth.uid;
+      allow create: if signedIn() && request.resource.data.user_id == request.auth.uid &&
+        request.resource.data.active == true;
+      allow update: if signedIn() && resource.data.user_id == request.auth.uid &&
+        request.resource.data.user_id == request.auth.uid;
+      allow delete: if signedIn() && resource.data.user_id == request.auth.uid;
+    }
+    // Actual delivery is performed by a trusted server, never from GitHub Pages.
+    match /notification_jobs/{jobId} {
+      allow read, create, update, delete: if coach();
+    }
     match /access_requests/{requestId} { allow read, write: if coach(); }
   }
 }
