@@ -38,7 +38,15 @@ service cloud.firestore {
       allow create, update, delete: if coach();
     }
     match /game_results/{resultId} { allow read: if signedIn(); allow write: if coach(); }
-    match /player_game_stats/{statId} { allow read, write: if coach(); }
+    match /player_game_stats/{statId} {
+      allow read: if coach() || (signedIn() && resource.data.user_id == request.auth.uid);
+      allow write: if coach();
+    }
+    match /player_profiles/{userId} {
+      allow read: if signedIn() && (userId == request.auth.uid || coach());
+      allow create, update: if signedIn() && userId == request.auth.uid;
+      allow delete: if coach();
+    }
     match /access_requests/{requestId} { allow read, write: if coach(); }
   }
 }
