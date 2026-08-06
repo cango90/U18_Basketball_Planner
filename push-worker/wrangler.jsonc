@@ -1,0 +1,15 @@
+{
+  "name": "u18-teamplaner-push",
+  "main": "src/worker.mjs",
+  "compatibility_date": "2026-08-07",
+  "compatibility_flags": ["nodejs_compat"],
+  "durable_objects": {
+    "bindings": [{ "name": "TEAM_PUSH", "class_name": "TeamPush" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["TeamPush"] }],
+  "vars": {
+    "FIREBASE_API_KEY": "AIzaSyDrlN-kZS2Y2T89lJ7FadIyq1d38HiME_s",
+    "FIREBASE_PROJECT_ID": "teamplanner-svleonbergeltingen",
+    "ALLOWED_ORIGIN": "https://cango90.github.io"
+  }
+}
