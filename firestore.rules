@@ -7,6 +7,8 @@ service cloud.firestore {
       return signedIn() && (request.auth.token.email == 'berk@teamplaner.invalid' ||
         get(/databases/$(database)/documents/team_memberships/$(request.auth.uid)).data.role in ['coach', 'club_admin']);
     }
+    function dutyBefore(dutyId) { return get(/databases/$(database)/documents/duty_assignments/$(dutyId)).data; }
+    function dutyAfter(dutyId) { return getAfter(/databases/$(database)/documents/duty_assignments/$(dutyId)).data; }
     function ownAttendance() { return signedIn() && request.resource.data.user_id == request.auth.uid; }
 
     match /team_memberships/{memberId} {
@@ -30,8 +32,28 @@ service cloud.firestore {
     match /duty_assignments/{dutyId} {
       allow read: if signedIn();
       allow create, delete: if coach();
-      allow update: if coach() || (signedIn() && request.resource.data.assigned_to == request.auth.uid &&
-        resource.data.assigned_to == null && request.resource.data.status == 'claimed');
+      allow update: if coach() || (signedIn() && (
+        (resource.data.assigned_to == null && request.resource.data.assigned_to == request.auth.uid &&
+          request.resource.data.status == 'claimed' &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['assigned_to', 'assigned_name', 'status', 'claimed_at'])) ||
+        (resource.data.assigned_to == request.auth.uid && request.resource.data.assigned_to == null &&
+          request.resource.data.status == 'open' &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['assigned_to', 'assigned_name', 'status', 'claimed_at', 'withdrawn_at']))
+      ));
+    }
+    match /duty_history/{historyId} {
+      allow read: if coach();
+      allow create: if coach() || (signedIn() && request.resource.data.player_id == request.auth.uid && (
+        (request.resource.data.action == 'claimed' &&
+          dutyBefore(request.resource.data.duty_id).assigned_to == null &&
+          dutyAfter(request.resource.data.duty_id).assigned_to == request.auth.uid &&
+          dutyAfter(request.resource.data.duty_id).status == 'claimed') ||
+        (request.resource.data.action == 'withdrawn' &&
+          dutyBefore(request.resource.data.duty_id).assigned_to == request.auth.uid &&
+          dutyAfter(request.resource.data.duty_id).assigned_to == null &&
+          dutyAfter(request.resource.data.duty_id).status == 'open')
+      ));
+      allow update, delete: if coach();
     }
     match /messages/{messageId} {
       allow read: if signedIn();
