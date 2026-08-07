@@ -126,7 +126,7 @@ firebaseAuth.onAuthStateChanged(u=>{user=u?{id:u.uid,email:u.email,displayName:u
 const FIREBASE={apiKey:'AIzaSyDrlN-kZS2Y2T89lJ7FadIyq1d38HiME_s',authDomain:'teamplanner-svleonbergeltingen.firebaseapp.com',projectId:'teamplanner-svleonbergeltingen',storageBucket:'teamplanner-svleonbergeltingen.firebasestorage.app',messagingSenderId:'1020176566608',appId:'1:1020176566608:web:c74e1e5b4c4dffcc888455'};
 const fb=firebase.initializeApp(FIREBASE,'teamplanner-current'), auth=fb.auth(), store=fb.firestore();
 // Public VAPID key only. The private key remains solely in the future sending service.
-const PUSH_SERVICE_URL=''; // Filled once after the Cloudflare worker is published.
+const PUSH_SERVICE_URL='https://u18-teamplaner-push.svleonberg-teamplaner.workers.dev';
 let PUSH_PUBLIC_VAPID_KEY='';
 const SEASON='u18-2026', TEAM='U18 Basketball', POSITIONS=['Point Guard','Shooting Guard','Small Forward','Power Forward','Center'];
 const PLAYERS=['Amir Zemaria-Hakim','Armin Mulahalilovic','Bastian Budde','Benyamin Azizi','Ege Sogukcelik','Hendrik Intveld','Iraklis Anthopoulos','Jonas Luebke','Leonard Dietrich','Niko Andric','Tanju Vdovic','Zois Chrysafoudis'];
