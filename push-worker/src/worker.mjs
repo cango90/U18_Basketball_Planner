@@ -50,6 +50,15 @@ export class TeamPush {
       await this.setNextAlarm(data); return json({ job });
     }
     if (path === '/jobs-list') return json({ jobs: data.jobs.slice(0, 40) });
+    if (path === '/jobs-delete') {
+      const id = String(body.id || '');
+      const job = data.jobs.find(item => item.id === id);
+      if (!job) return json({ error: 'Mitteilung nicht gefunden.' }, 404);
+      if (job.status === 'sending') return json({ error: 'Mitteilung wird gerade versendet.' }, 409);
+      data.jobs = data.jobs.filter(item => item.id !== id);
+      await this.save(data); await this.setNextAlarm(data);
+      return json({ ok: true, id });
+    }
     return json({ error: 'Nicht gefunden.' }, 404);
   }
   async alarm() {
@@ -76,7 +85,7 @@ export default {
   async fetch(request, env) {
     const origin = request.headers.get('origin') || '';
     const allowed = origin === env.ALLOWED_ORIGIN ? origin : env.ALLOWED_ORIGIN;
-    if (request.method === 'OPTIONS') return new Response(null, { headers: { 'access-control-allow-origin': allowed, 'access-control-allow-methods': 'GET, POST, OPTIONS', 'access-control-allow-headers': 'authorization, content-type' } });
+    if (request.method === 'OPTIONS') return new Response(null, { headers: { 'access-control-allow-origin': allowed, 'access-control-allow-methods': 'GET, POST, DELETE, OPTIONS', 'access-control-allow-headers': 'authorization, content-type' } });
     const path = new URL(request.url).pathname;
     if (path === '/config' && request.method === 'GET') return json({ vapidPublicKey: env.VAPID_PUBLIC_KEY }, 200, allowed);
     const user = await authenticatedUser(request, env);
@@ -95,6 +104,13 @@ export default {
     if (path === '/jobs' && request.method === 'GET') {
       if (!await coachUser(user, env)) return unauthorized(allowed);
       const result = await agentRequest(env, '/jobs-list', {});
+      return new Response(result.body, { status: result.status, headers: { ...Object.fromEntries(result.headers), 'access-control-allow-origin': allowed } });
+    }
+    if (path.startsWith('/jobs/') && request.method === 'DELETE') {
+      if (!await coachUser(user, env)) return unauthorized(allowed);
+      const id = decodeURIComponent(path.slice('/jobs/'.length));
+      if (!id) return json({ error: 'Mitteilungs-ID fehlt.' }, 400, allowed);
+      const result = await agentRequest(env, '/jobs-delete', { id });
       return new Response(result.body, { status: result.status, headers: { ...Object.fromEntries(result.headers), 'access-control-allow-origin': allowed } });
     }
     return json({ error: 'Nicht gefunden.' }, 404, allowed);
