@@ -170,13 +170,8 @@ async function resolveMyTeams(){
   const snap=await store.collection('team_memberships').where('user_id','==',me.uid).get();
   myTeams=snap.docs.map(d=>d.data()).filter(m=>TEAMS[m.team_id]);
 }
-function pickInitialTeam(){
-  const saved=localStorage.getItem('teamplaner-active-team');
-  if(saved&&myTeams.some(m=>m.team_id===saved))return saved;
-  return myTeams[0]?.team_id||null;
-}
 function switchTeam(teamId){if(!myTeams.some(m=>m.team_id===teamId))return;activeTeam=teamId;localStorage.setItem('teamplaner-active-team',teamId);page='home';detail=null;boxscoreEvent=null;load().catch(loadError)}
-function teamSwitcher(){return `<section class="mx-auto mt-16 max-w-md text-center">${crest()}<p class="mt-5 text-xs font-black tracking-[.2em] text-sky-300">SV LEONBERG/ELTINGEN</p><h1 class="mt-1 text-2xl font-black">Welches Team?</h1><p class="mt-2 text-zinc-400">Du hast Zugriff auf mehr als ein Team.</p><div class="mt-8 space-y-3 text-left">${myTeams.map(m=>{const t=TEAMS[m.team_id];return `<button onclick="switchTeam('${m.team_id}')" class="${card} tap flex w-full items-center gap-3 text-left"><img src="${CREST}" class="h-11 w-11 shrink-0 rounded-2xl object-contain bg-sky-950/70 p-1" alt=""><span class="min-w-0"><b class="block truncate">${esc(t.label)}</b><span class="text-xs text-zinc-400">${m.role==='club_admin'?'Admin':m.role==='coach'?'Trainer':'Spieler'}</span></span></button>`}).join('')}</div><button onclick="signout()" class="mt-8 text-sm font-bold text-zinc-400">Abmelden</button></section>`}
+function teamSwitcher(){const mine=new Map(myTeams.map(m=>[m.team_id,m.role]));return `<section class="mx-auto mt-16 max-w-md text-center">${crest()}<p class="mt-5 text-xs font-black tracking-[.2em] text-sky-300">SV LEONBERG/ELTINGEN</p><h1 class="mt-1 text-2xl font-black">Welches Team?</h1><p class="mt-2 text-zinc-400">Wähle dein Team aus.</p><div class="mt-8 space-y-3 text-left">${Object.values(TEAMS).map(t=>{const role=mine.get(t.id);if(role){const label=role==='club_admin'?'Admin':role==='coach'?'Trainer':'Spieler';return `<button onclick="switchTeam('${t.id}')" class="${card} tap flex w-full items-center gap-3 border border-emerald-400/25 bg-emerald-950/10 text-left"><img src="${CREST}" class="h-11 w-11 shrink-0 rounded-2xl object-contain bg-sky-950/70 p-1" alt=""><span class="min-w-0"><b class="block truncate">${esc(t.label)}</b><span class="text-xs text-emerald-300">${label}</span></span></button>`}return `<div class="${card} flex w-full cursor-not-allowed items-center gap-3 border border-rose-400/15 bg-rose-950/10 text-left opacity-60"><img src="${CREST}" class="h-11 w-11 shrink-0 rounded-2xl object-contain bg-sky-950/70 p-1 grayscale" alt=""><span class="min-w-0"><b class="block truncate">${esc(t.label)}</b><span class="text-xs text-rose-300">Kein Zugriff</span></span></div>`}).join('')}</div><button onclick="signout()" class="mt-8 text-sm font-bold text-zinc-400">Abmelden</button></section>`}
 
 async function load(){
   if(!activeTeam)return render();
@@ -205,9 +200,8 @@ auth.onAuthStateChanged(async u=>{
   try{
     await resolveMyTeams();
     if(!myTeams.length){membership=null;activeTeam=null;render();return}
-    activeTeam=pickInitialTeam();
-    await load();
-    await registerPwa();await loadPushConfig();await readPushSubscription();await loadPushJobs();render()
+    activeTeam=null;render();
+    await registerPwa();await loadPushConfig();await readPushSubscription()
   }catch(error){loadError(error)}
 });
 function header(){const multi=myTeams.length>1;return `<header class="mb-6 flex items-center justify-between gap-3"><button ${multi?`onclick="openTeamSwitcher()"`:''} class="flex min-w-0 items-center gap-3 text-left ${multi?'tap':''}">${crest()}<div class="min-w-0"><p class="text-[10px] font-black tracking-[.2em] text-sky-300">SV LEONBERG/ELTINGEN</p><h1 class="truncate font-black">${esc(team()?.label||'')}${multi?' <span class=\"text-zinc-500\">⇄</span>':''}</h1><p class="mt-0.5 text-[10px] text-zinc-500">${esc(currentName())}${coach()?' · Trainer':''}</p></div></button><div class="flex shrink-0 items-center gap-2">${admin()?`<button onclick="seed()" class="hidden text-xs font-bold text-sky-300 sm:block">Daten prüfen</button>`:''}<button onclick="signout()" class="text-sm font-bold text-zinc-400">Abmelden</button></div></header>`}
@@ -292,11 +286,12 @@ function slotStart(date,timeOrNull){return timeOrNull?date+'T'+timeOrNull+':00':
 const today=()=>new Date().toISOString().slice(0,10);
 async function seed(){
   if(!admin())return;
-  const t=team();
-  if(!confirm(`Kader, Spielplan und Training für ${t.label} werden geprüft. Bereits erfasste Aufgaben bleiben unverändert. Fortfahren?`))return;
-  const batch=store.batch(), prefix=activeTeam+'-';
-  t.players.forEach(name=>batch.set(store.collection('roster_entries').doc(prefix+uid(name)),{season_id:activeTeam,full_name:name,role:'player',active:true,profile_id:null,positions:[]},{merge:true}));
-  t.coaches.forEach(name=>batch.set(store.collection('roster_entries').doc(prefix+uid(name)),{season_id:activeTeam,full_name:name,role:'coach',active:true,profile_id:name==='Berk-Can Çelebi'?me.uid:null,positions:[]},{merge:true}));
+  const t=team(), prefix=activeTeam+'-', validNames=new Set([...t.players,...t.coaches]), rosterById=Object.fromEntries(roster.map(r=>[r.id,r])), stale=roster.filter(r=>!validNames.has(r.full_name)&&!r.profile_id);
+  if(!confirm(`Kader, Spielplan und Training für ${t.label} werden geprüft. Bereits erfasste Aufgaben bleiben unverändert.${stale.length?' '+stale.length+' veraltete Kadereinträge ohne Zugang werden entfernt.':''} Fortfahren?`))return;
+  const batch=store.batch();
+  t.players.forEach(name=>{const id=prefix+uid(name),ex=rosterById[id];batch.set(store.collection('roster_entries').doc(id),{season_id:activeTeam,full_name:name,role:'player',active:true,profile_id:ex?.profile_id??null,positions:ex?.positions??[]},{merge:true})});
+  t.coaches.forEach(name=>{const id=prefix+uid(name),ex=rosterById[id];batch.set(store.collection('roster_entries').doc(id),{season_id:activeTeam,full_name:name,role:'coach',active:true,profile_id:ex?.profile_id??(name==='Berk-Can Çelebi'?me.uid:null),positions:ex?.positions??[]},{merge:true})});
+  stale.forEach(r=>batch.delete(store.collection('roster_entries').doc(r.id)));
   t.games.forEach((g,i)=>{const [date,opponent,location,home,gameTime,note]=g, id=prefix+'game-'+String(i+1).padStart(2,'0'), timeTbd=!gameTime, start=slotStart(date,gameTime);
     batch.set(store.collection('events').doc(id),{season_id:activeTeam,type:'game',starts_at:start,meeting_at:timeTbd?null:start,time_tbd:timeTbd,opponent,location,home,schedule_note:note||null,schedule_source:t.scheduleSource,schedule_verified_at:today()},{merge:true});
     batch.set(store.collection('duty_assignments').doc(id+'-kit-bag'),{season_id:activeTeam,event_id:id,category:'kit_bag',assigned_to:null,assigned_name:null,status:'open',claimed_at:null,confirmed_at:null},{merge:true});
