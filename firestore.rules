@@ -2,37 +2,43 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn() { return request.auth != null; }
-    // Berk is the initial trainer; every further trainer is explicitly recorded.
-    function coach() {
-      return signedIn() && (request.auth.token.email == 'berk@teamplaner.invalid' ||
-        get(/databases/$(database)/documents/team_memberships/$(request.auth.uid)).data.role in ['coach', 'club_admin']);
+    function isSuperAdmin() { return signedIn() && request.auth.token.email == 'berk@teamplaner.invalid'; }
+    // Roles are per team. A membership doc id is "<uid>_<teamId>".
+    function coachOf(teamId) {
+      return signedIn() && (isSuperAdmin() ||
+        (exists(/databases/$(database)/documents/team_memberships/$(request.auth.uid + '_' + teamId)) &&
+         get(/databases/$(database)/documents/team_memberships/$(request.auth.uid + '_' + teamId)).data.role in ['coach', 'club_admin']));
     }
     function dutyBefore(dutyId) { return get(/databases/$(database)/documents/duty_assignments/$(dutyId)).data; }
     function dutyAfter(dutyId) { return getAfter(/databases/$(database)/documents/duty_assignments/$(dutyId)).data; }
     function ownAttendance() { return signedIn() && request.resource.data.user_id == request.auth.uid; }
 
     match /team_memberships/{memberId} {
-      allow read: if signedIn() && (memberId == request.auth.uid || coach());
-      allow create, update, delete: if coach();
+      allow read: if signedIn();
+      allow create, update: if isSuperAdmin() || coachOf(request.resource.data.team_id);
+      allow delete: if isSuperAdmin() || coachOf(resource.data.team_id);
     }
     match /roster_entries/{entryId} {
       allow read: if signedIn();
-      allow create, update, delete: if coach();
+      allow create, update: if coachOf(request.resource.data.season_id);
+      allow delete: if coachOf(resource.data.season_id);
     }
     match /events/{eventId} {
       allow read: if signedIn();
-      allow create, update, delete: if coach();
+      allow create, update: if coachOf(request.resource.data.season_id);
+      allow delete: if coachOf(resource.data.season_id);
     }
     match /attendance/{attendanceId} {
       allow read: if signedIn();
-      allow create: if coach() || ownAttendance();
-      allow update: if coach() || (signedIn() && resource.data.user_id == request.auth.uid && ownAttendance());
-      allow delete: if coach();
+      allow create: if coachOf(request.resource.data.season_id) || ownAttendance();
+      allow update: if coachOf(request.resource.data.season_id) || (signedIn() && resource.data.user_id == request.auth.uid && ownAttendance());
+      allow delete: if coachOf(resource.data.season_id);
     }
     match /duty_assignments/{dutyId} {
       allow read: if signedIn();
-      allow create, delete: if coach();
-      allow update: if coach() || (signedIn() && (
+      allow create: if coachOf(request.resource.data.season_id);
+      allow delete: if coachOf(resource.data.season_id);
+      allow update: if coachOf(resource.data.season_id) || (signedIn() && (
         (resource.data.assigned_to == null && request.resource.data.assigned_to == request.auth.uid &&
           request.resource.data.status == 'claimed' &&
           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['assigned_to', 'assigned_name', 'status', 'claimed_at'])) ||
@@ -42,8 +48,8 @@ service cloud.firestore {
       ));
     }
     match /duty_history/{historyId} {
-      allow read: if coach();
-      allow create: if coach() || (signedIn() && request.resource.data.player_id == request.auth.uid && (
+      allow read: if coachOf(resource.data.season_id);
+      allow create: if coachOf(request.resource.data.season_id) || (signedIn() && request.resource.data.player_id == request.auth.uid && (
         (request.resource.data.action == 'claimed' &&
           dutyBefore(request.resource.data.duty_id).assigned_to == null &&
           dutyAfter(request.resource.data.duty_id).assigned_to == request.auth.uid &&
@@ -53,21 +59,27 @@ service cloud.firestore {
           dutyAfter(request.resource.data.duty_id).assigned_to == null &&
           dutyAfter(request.resource.data.duty_id).status == 'open')
       ));
-      allow update, delete: if coach();
+      allow update, delete: if coachOf(resource.data.season_id);
     }
     match /messages/{messageId} {
       allow read: if signedIn();
-      allow create, update, delete: if coach();
+      allow create: if coachOf(request.resource.data.season_id);
+      allow update, delete: if coachOf(resource.data.season_id);
     }
-    match /game_results/{resultId} { allow read: if signedIn(); allow write: if coach(); }
+    match /game_results/{resultId} {
+      allow read: if signedIn();
+      allow create, update: if coachOf(request.resource.data.season_id);
+      allow delete: if coachOf(resource.data.season_id);
+    }
     match /player_game_stats/{statId} {
-      allow read: if coach() || (signedIn() && resource.data.user_id == request.auth.uid);
-      allow write: if coach();
+      allow read: if signedIn() && (resource.data.user_id == request.auth.uid || coachOf(resource.data.season_id));
+      allow create, update: if coachOf(request.resource.data.season_id);
+      allow delete: if coachOf(resource.data.season_id);
     }
     match /player_profiles/{userId} {
-      allow read: if signedIn() && (userId == request.auth.uid || coach());
+      allow read: if signedIn() && (userId == request.auth.uid || isSuperAdmin());
       allow create, update: if signedIn() && userId == request.auth.uid;
-      allow delete: if coach();
+      allow delete: if isSuperAdmin();
     }
     // Browser endpoints are private device credentials. Trainers choose recipients by
     // team role later; they never need to see individual endpoint URLs.
@@ -79,10 +91,11 @@ service cloud.firestore {
         request.resource.data.user_id == request.auth.uid;
       allow delete: if signedIn() && resource.data.user_id == request.auth.uid;
     }
-    // Actual delivery is performed by a trusted server, never from GitHub Pages.
+    // Actual delivery is performed by a trusted server (Cloudflare Worker), never from GitHub Pages.
+    // Kept broad on purpose: this collection is not read by the client app.
     match /notification_jobs/{jobId} {
-      allow read, create, update, delete: if coach();
+      allow read, create, update, delete: if isSuperAdmin();
     }
-    match /access_requests/{requestId} { allow read, write: if coach(); }
+    match /access_requests/{requestId} { allow read, write: if isSuperAdmin(); }
   }
 }

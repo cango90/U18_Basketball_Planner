@@ -9,17 +9,18 @@ async function authenticatedUser(request, env) {
   const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${env.FIREBASE_API_KEY}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ idToken: token }) });
   if (!response.ok) return null;
   const data = await response.json();
-  return data.users?.[0] ? { uid: data.users[0].localId, token } : null;
+  return data.users?.[0] ? { uid: data.users[0].localId, email: data.users[0].email, token } : null;
 }
 
-async function coachUser(user, env) {
-  if (user.uid && user.token) {
-    const url = `https://firestore.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents/team_memberships/${user.uid}`;
-    const response = await fetch(url, { headers: { authorization: `Bearer ${user.token}` } });
-    if (response.ok) {
-      const data = await response.json();
-      return ['coach', 'club_admin'].includes(data.fields?.role?.stringValue);
-    }
+// Roles are per team. A membership doc id is "<uid>_<teamId>", matching firestore.rules.
+async function coachUser(user, env, teamId) {
+  if (user.email === 'berk@teamplaner.invalid') return true;
+  if (!user.uid || !user.token || !teamId) return false;
+  const url = `https://firestore.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents/team_memberships/${user.uid}_${teamId}`;
+  const response = await fetch(url, { headers: { authorization: `Bearer ${user.token}` } });
+  if (response.ok) {
+    const data = await response.json();
+    return ['coach', 'club_admin'].includes(data.fields?.role?.stringValue);
   }
   return false;
 }
@@ -44,16 +45,21 @@ export class TeamPush {
       await this.save(data); return json({ ok: true });
     }
     if (path === '/jobs') {
+      if (!body.job?.team_id) return json({ error: 'team_id fehlt.' }, 400);
       const job = { ...body.job, id: crypto.randomUUID(), status: new Date(body.job.scheduled_at).getTime() > Date.now() + 5000 ? 'scheduled' : 'sending', created_at: new Date().toISOString() };
       data.jobs.unshift(job); await this.save(data);
       if (job.status === 'sending') { const result = await this.deliver(job, data); job.status = 'sent'; job.sent_at = new Date().toISOString(); job.sent_count = result.sent; job.failed_count = result.failed; await this.save(data); }
       await this.setNextAlarm(data); return json({ job });
     }
-    if (path === '/jobs-list') return json({ jobs: data.jobs.slice(0, 40) });
+    if (path === '/jobs-list') {
+      const jobs = data.jobs.filter(item => item.team_id === body.team_id).slice(0, 40);
+      return json({ jobs });
+    }
     if (path === '/jobs-delete') {
       const id = String(body.id || '');
       const job = data.jobs.find(item => item.id === id);
       if (!job) return json({ error: 'Mitteilung nicht gefunden.' }, 404);
+      if (job.team_id !== body.team_id) return json({ error: 'Diese Mitteilung gehört zu einem anderen Team.' }, 403);
       if (job.status === 'sending') return json({ error: 'Mitteilung wird gerade versendet.' }, 409);
       data.jobs = data.jobs.filter(item => item.id !== id);
       await this.save(data); await this.setNextAlarm(data);
@@ -73,7 +79,7 @@ export class TeamPush {
     const targets = Object.entries(data.subscriptions).filter(([, item]) => job.recipients.includes(item.uid));
     let sent = 0, failed = 0; const remove = [];
     await Promise.all(targets.map(async ([key, item]) => {
-      try { await webpush.sendNotification(item.subscription, JSON.stringify({ title: job.title, body: job.body, url: job.url, tag: `u18-${job.id}` }), { TTL: 86400, urgency: 'normal' }); sent++; }
+      try { await webpush.sendNotification(item.subscription, JSON.stringify({ title: job.title, body: job.body, url: job.url, tag: `team-${job.id}` }), { TTL: 86400, urgency: 'normal' }); sent++; }
       catch (error) { failed++; if ([404, 410].includes(error?.statusCode)) remove.push(key); }
     }));
     remove.forEach(key => delete data.subscriptions[key]);
@@ -87,6 +93,7 @@ export default {
     const allowed = origin === env.ALLOWED_ORIGIN ? origin : env.ALLOWED_ORIGIN;
     if (request.method === 'OPTIONS') return new Response(null, { headers: { 'access-control-allow-origin': allowed, 'access-control-allow-methods': 'GET, POST, DELETE, OPTIONS', 'access-control-allow-headers': 'authorization, content-type' } });
     const path = new URL(request.url).pathname;
+    const query = new URL(request.url).searchParams;
     if (path === '/config' && request.method === 'GET') return json({ vapidPublicKey: env.VAPID_PUBLIC_KEY }, 200, allowed);
     const user = await authenticatedUser(request, env);
     if (!user) return unauthorized(allowed);
@@ -96,21 +103,24 @@ export default {
       return new Response(result.body, { status: result.status, headers: { ...Object.fromEntries(result.headers), 'access-control-allow-origin': allowed } });
     }
     if (path === '/jobs' && request.method === 'POST') {
-      if (!await coachUser(user, env)) return unauthorized(allowed);
       const input = await request.json();
+      const teamId = input.job?.team_id;
+      if (!await coachUser(user, env, teamId)) return unauthorized(allowed);
       const result = await agentRequest(env, '/jobs', { job: { ...input.job, created_by: user.uid } });
       return new Response(result.body, { status: result.status, headers: { ...Object.fromEntries(result.headers), 'access-control-allow-origin': allowed } });
     }
     if (path === '/jobs' && request.method === 'GET') {
-      if (!await coachUser(user, env)) return unauthorized(allowed);
-      const result = await agentRequest(env, '/jobs-list', {});
+      const teamId = query.get('team');
+      if (!await coachUser(user, env, teamId)) return unauthorized(allowed);
+      const result = await agentRequest(env, '/jobs-list', { team_id: teamId });
       return new Response(result.body, { status: result.status, headers: { ...Object.fromEntries(result.headers), 'access-control-allow-origin': allowed } });
     }
     if (path.startsWith('/jobs/') && request.method === 'DELETE') {
-      if (!await coachUser(user, env)) return unauthorized(allowed);
+      const teamId = query.get('team');
+      if (!await coachUser(user, env, teamId)) return unauthorized(allowed);
       const id = decodeURIComponent(path.slice('/jobs/'.length));
       if (!id) return json({ error: 'Mitteilungs-ID fehlt.' }, 400, allowed);
-      const result = await agentRequest(env, '/jobs-delete', { id });
+      const result = await agentRequest(env, '/jobs-delete', { id, team_id: teamId });
       return new Response(result.body, { status: result.status, headers: { ...Object.fromEntries(result.headers), 'access-control-allow-origin': allowed } });
     }
     return json({ error: 'Nicht gefunden.' }, 404, allowed);
