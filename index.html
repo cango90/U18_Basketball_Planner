@@ -28,11 +28,13 @@
     }
     .hero{background:radial-gradient(circle at 100% 0,#38bdf8 0,transparent 36%),linear-gradient(135deg,#172554,#075985);box-shadow:0 22px 55px rgba(14,116,144,.3)}.card{box-shadow:0 12px 34px rgba(0,0,0,.24)}button{transition:.16s transform,opacity}.tap:active{transform:scale(.97)}
     @media (max-width:768px){body.bg-zinc-950{background-image:linear-gradient(180deg,rgba(2,6,23,.72) 0%,rgba(2,6,23,.84) 52%,rgba(2,6,23,.92) 100%),url('assets/images/arena-background.png')!important;background-attachment:fixed!important;background-size:auto 100vh!important;background-position:center center!important}}
-    @media (display-mode:standalone){body{padding-top:env(safe-area-inset-top)}nav{padding-bottom:calc(.5rem + env(safe-area-inset-bottom))!important}}
+    @media (display-mode:standalone){body{padding-top:env(safe-area-inset-top)}}
     .duty-action{min-width:max-content}
     #app{max-width:100%}
+    .team-nav{scrollbar-width:none}
+    .team-nav::-webkit-scrollbar{display:none}
     @media (max-width:640px){
-      #app{padding:.85rem;padding-bottom:7.5rem}.team-nav button{padding:.55rem .3rem!important;font-size:.66rem!important}.duty-action{width:100%;justify-content:center}.hero{padding:1.25rem!important}
+      #app{padding:.85rem;padding-bottom:7.5rem}.team-nav button{padding:.6rem .9rem!important;font-size:.72rem!important;white-space:nowrap}.duty-action{width:100%;justify-content:center}.hero{padding:1.25rem!important}nav{padding-bottom:calc(.9rem + env(safe-area-inset-bottom))!important}
     }
   </style>
 </head>
@@ -105,7 +107,14 @@ const TEAMS={
   ],
   trainings:[['2026-09-14','20:15','SV Halle Leonberg'],['2026-09-17','20:15','Georgii-Halle, Leonberg'],['2026-09-21','20:15','SV Halle Leonberg'],['2026-09-24','20:15','Georgii-Halle, Leonberg'],['2026-09-28','20:15','SV Halle Leonberg'],['2026-10-01','20:15','Georgii-Halle, Leonberg'],['2026-10-05','20:15','SV Halle Leonberg'],['2026-10-08','20:15','Georgii-Halle, Leonberg'],['2026-10-12','20:15','SV Halle Leonberg'],['2026-10-15','20:15','Georgii-Halle, Leonberg'],['2026-10-19','20:15','SV Halle Leonberg'],['2026-10-22','20:15','Georgii-Halle, Leonberg'],['2026-11-02','20:15','SV Halle Leonberg'],['2026-11-05','20:15','Georgii-Halle, Leonberg'],['2026-11-09','20:15','SV Halle Leonberg'],['2026-11-12','20:15','Georgii-Halle, Leonberg'],['2026-11-16','20:15','SV Halle Leonberg'],['2026-11-19','20:15','Georgii-Halle, Leonberg'],['2026-11-23','20:15','SV Halle Leonberg'],['2026-11-26','20:15','Georgii-Halle, Leonberg'],['2026-11-30','20:15','SV Halle Leonberg'],['2026-12-03','20:15','Georgii-Halle, Leonberg'],['2026-12-07','20:15','SV Halle Leonberg'],['2026-12-10','20:15','Georgii-Halle, Leonberg'],['2026-12-14','20:15','SV Halle Leonberg'],['2026-12-17','20:15','Georgii-Halle, Leonberg'],['2026-12-21','20:15','SV Halle Leonberg'],['2027-01-11','20:15','SV Halle Leonberg'],['2027-01-14','20:15','Georgii-Halle, Leonberg'],['2027-01-18','20:15','SV Halle Leonberg'],['2027-01-21','20:15','Georgii-Halle, Leonberg'],['2027-01-25','20:15','SV Halle Leonberg'],['2027-01-28','20:15','Georgii-Halle, Leonberg'],['2027-02-01','20:15','SV Halle Leonberg'],['2027-02-04','20:15','Georgii-Halle, Leonberg'],['2027-02-08','20:15','SV Halle Leonberg'],['2027-02-11','20:15','Georgii-Halle, Leonberg'],['2027-02-15','20:15','SV Halle Leonberg'],['2027-02-18','20:15','Georgii-Halle, Leonberg'],['2027-02-22','20:15','SV Halle Leonberg'],['2027-02-25','20:15','Georgii-Halle, Leonberg'],['2027-03-01','20:15','SV Halle Leonberg'],['2027-03-04','20:15','Georgii-Halle, Leonberg'],['2027-03-08','20:15','SV Halle Leonberg'],['2027-03-11','20:15','Georgii-Halle, Leonberg'],['2027-03-15','20:15','SV Halle Leonberg'],['2027-03-18','20:15','Georgii-Halle, Leonberg'],['2027-03-22','20:15','SV Halle Leonberg'],['2027-03-25','20:15','Georgii-Halle, Leonberg'],['2027-04-05','20:15','SV Halle Leonberg'],['2027-04-08','20:15','Georgii-Halle, Leonberg'],['2027-04-12','20:15','SV Halle Leonberg'],['2027-04-15','20:15','Georgii-Halle, Leonberg'],['2027-04-19','20:15','SV Halle Leonberg'],['2027-04-22','20:15','Georgii-Halle, Leonberg'],['2027-04-26','20:15','SV Halle Leonberg'],['2027-04-29','20:15','Georgii-Halle, Leonberg']],
   scoreTable:[
-   ['2027-01-31','15:30','H2','ESV Rot-Weiß Stuttgart','U18',false,'Hallenliste nennt 30.01. – bitte Datum bestätigen.']
+   ['2026-09-20','15:30','H1','KK Srbija Stuttgart','H2 / U18 / U14',false],
+   ['2026-10-04','19:30','H1','TSV Kupferzell','H2',false],
+   ['2026-11-08','19:30','H1','SZ Giants Kornwestheim','H2',false],
+   ['2026-12-06','17:30','H1','BG Remseck 2','H2',false],
+   ['2027-01-17','17:30','H1','SV Möhringen 2','H2',false],
+   ['2027-03-07','19:30','H1','Porsche BBA Ludwigsburg','H2',false],
+   ['2027-04-04','15:30','H1','TSV Schwaikheim','H2 / U18',false],
+   ['2027-04-11','17:30','H1','Zuffenhausen 89ers','H2',false]
   ],
   scheduleSource:'BBW3 Kreisliga B4 Spielplan (Deutscher Basketball-Bund)'
  }
@@ -203,7 +212,7 @@ auth.onAuthStateChanged(async u=>{
 });
 function header(){const multi=myTeams.length>1;return `<header class="mb-6 flex items-center justify-between gap-3"><button ${multi?`onclick="openTeamSwitcher()"`:''} class="flex min-w-0 items-center gap-3 text-left ${multi?'tap':''}">${crest()}<div class="min-w-0"><p class="text-[10px] font-black tracking-[.2em] text-sky-300">SV LEONBERG/ELTINGEN</p><h1 class="truncate font-black">${esc(team()?.label||'')}${multi?' <span class=\"text-zinc-500\">⇄</span>':''}</h1><p class="mt-0.5 text-[10px] text-zinc-500">${esc(currentName())}${coach()?' · Trainer':''}</p></div></button><div class="flex shrink-0 items-center gap-2">${admin()?`<button onclick="seed()" class="hidden text-xs font-bold text-sky-300 sm:block">Daten prüfen</button>`:''}<button onclick="signout()" class="text-sm font-bold text-zinc-400">Abmelden</button></div></header>`}
 function openTeamSwitcher(){if(myTeams.length<2)return;detail=null;app.innerHTML=teamSwitcher()}
-function nav(){const tabs=[['home','Home'],['games','Spiele'],['training','Training'],['duties','Anschreiben'],['roster','Kader'],['stats','Stats'],...(coach()?[['coach','Trainer']]:[])];return `<nav class="fixed inset-x-0 bottom-0 z-20 border-t border-white/[.08] bg-zinc-950/95 backdrop-blur"><div class="team-nav mx-auto grid max-w-4xl grid-cols-4 gap-1 p-2 sm:grid-cols-7">${tabs.map(([id,label])=>`<button onclick="go('${id}')" class="${button} truncate px-1 text-xs ${page===id?'bg-sky-400 text-zinc-950':'text-zinc-400'}">${label}</button>`).join('')}</div></nav>`}
+function nav(){const tabs=[['home','Home'],['games','Spiele'],['training','Training'],['duties','Anschreiben'],['roster','Kader'],['stats','Stats'],...(coach()?[['coach','Trainer']]:[])];return `<nav class="fixed inset-x-0 bottom-0 z-20 border-t border-white/[.08] bg-zinc-950/95 backdrop-blur"><div class="team-nav mx-auto flex max-w-4xl gap-1 overflow-x-auto p-2 sm:grid sm:grid-cols-7 sm:overflow-visible">${tabs.map(([id,label])=>`<button onclick="go('${id}')" class="${button} shrink-0 whitespace-nowrap px-3 text-xs sm:flex-1 sm:truncate sm:px-1 ${page===id?'bg-sky-400 text-zinc-950':'text-zinc-400'}">${label}</button>`).join('')}</div></nav>`}
 function go(p){page=p;detail=null;boxscoreEvent=null;render()}
 function openEvent(id){detail=id;const e=events.find(x=>x.id===id);page=e?.type==='scoretable'?'duties':e?.type==='training'?'training':'games';render()}
 function render(){
@@ -265,7 +274,7 @@ function coachView(){
   +accordion('Push-Benachrichtigung','Systemmeldung an alle oder ausgewählte Spieler von '+esc(team().label)+' senden.',notificationCenter())
   +accordion('Nachricht ans Team','Kurznachricht, die in der App unter „Team-Updates“ erscheint.',`<form id="message" class="flex w-full min-w-0 flex-col gap-2 sm:flex-row"><input required name="body" class="min-w-0 flex-1 rounded-xl bg-zinc-800 p-3" placeholder="z. B. Treffzeit wird noch bekannt gegeben"><button class="${button} bg-sky-400 text-zinc-950">Senden</button></form>`)
   +accordion('Zugang anlegen','Neue Zugang-ID und Zugangscode für '+esc(team().label)+' vergeben.',`<form id="provision" class="grid gap-2 sm:grid-cols-2"><input required name="name" class="rounded-xl bg-zinc-800 p-3 sm:col-span-2" placeholder="Vollständiger Name"><select name="role" class="rounded-xl bg-zinc-800 p-3"><option value="player">Spieler</option><option value="coach">Trainer</option></select><input required name="id" autocapitalize="none" pattern="[a-z0-9._-]+" class="rounded-xl bg-zinc-800 p-3" placeholder="Zugang-ID, z. B. tobias"><input required name="code" minlength="8" type="password" class="rounded-xl bg-zinc-800 p-3 sm:col-span-2" placeholder="Zugangscode (mind. 8 Zeichen)"><button class="${button} bg-sky-400 text-zinc-950 sm:col-span-2">Zugang sicher anlegen</button><p id="provisionHint" class="text-xs text-zinc-400 sm:col-span-2"></p></form>`)
-  +(admin()?accordion('Anschreiben-Termine','Finale Hallenliste für '+esc(team().label)+' übernehmen. Bereits erfasste Trikottaschen bleiben unverändert.',`<p class="text-sm text-zinc-400">${team().scoreTable.length} Einsätze in der Hallenliste.</p><button onclick="syncScoretableSchedule()" class="${button} mt-3 bg-sky-400 text-zinc-950">Hallenliste übernehmen</button>`):'')
+  +(coach()?accordion('Anschreiben-Termine','Finale Hallenliste für '+esc(team().label)+' übernehmen. Bereits erfasste Trikottaschen bleiben unverändert.',`<p class="text-sm text-zinc-400">${team().scoreTable.length} ${team().scoreTable.length===1?'Einsatz':'Einsätze'} in der Hallenliste.</p><button onclick="syncScoretableSchedule()" class="${button} mt-3 bg-sky-400 text-zinc-950">Hallenliste übernehmen</button>`):'')
   +accordion('Aufgaben-Protokoll','Eintragungen und Austragungen, neueste zuerst.',dutyActivity())
   +`<a target="_blank" rel="noopener" href="https://www.basketball-bund.net/presseExport.do?reqCode=showLigen&viewDescr=sport.dbb.liga.LigaViewPublic/index.jsp_&viewClass=sport.dbb.liga.LigaViewPublic" class="tap ${card} mt-4 flex items-center justify-between gap-3 border border-sky-400/20 bg-gradient-to-br from-sky-950/60 via-zinc-900 to-zinc-900"><div class="min-w-0"><p class="text-xs font-black tracking-widest text-sky-300">DBB · TRAINER-EXPORT</p><b class="mt-1 block">Ergebnisse & Statistiken</b><span class="text-sm text-zinc-400">Ligaexport öffnen und Textdatei herunterladen</span></div><span class="shrink-0 text-xl text-sky-300">↗</span></a>`;
 }
@@ -280,6 +289,7 @@ async function deleteMessage(id){if(!coach()||!confirm('Diese Mitteilung lösche
 async function deleteAllMessages(){if(!coach()||!messages.length||!confirm('Wirklich alle Team-Updates für '+team().label+' löschen?'))return;const batch=store.batch();messages.forEach(m=>batch.delete(store.collection('messages').doc(m.id)));await batch.commit();await load()}
 async function provisionAccess(e){e.preventDefault();if(!coach())return;const form=e.currentTarget,d=new FormData(form),name=String(d.get('name')).trim(),id=String(d.get('id')).trim().toLowerCase(),code=String(d.get('code')),role=String(d.get('role')),hint=document.querySelector('#provisionHint');if(!/^[a-z0-9._-]+$/.test(id))return hint.textContent='Die Zugang-ID darf nur Kleinbuchstaben, Zahlen, Punkt, Unterstrich oder Bindestrich enthalten.';hint.textContent='Zugang wird angelegt …';let provisionApp;try{provisionApp=firebase.app('teamplanner-provision')}catch(_){provisionApp=firebase.initializeApp(FIREBASE,'teamplanner-provision')}try{const created=await provisionApp.auth().createUserWithEmailAndPassword(id+'@teamplaner.invalid',code),newUid=created.user.uid;await store.collection('team_memberships').doc(newUid+'_'+activeTeam).set({user_id:newUid,team_id:activeTeam,season_id:activeTeam,role,full_name:name,active:true,created_by:me.uid,created_at:new Date().toISOString()});const entry=roster.find(x=>x.full_name.toLocaleLowerCase('de-DE')===name.toLocaleLowerCase('de-DE'));if(entry)await store.collection('roster_entries').doc(entry.id).set({profile_id:newUid,role,active:true},{merge:true});await provisionApp.auth().signOut();form.reset();hint.textContent=`Fertig: ${name} kann sich mit ${id} anmelden (Team: ${team().label}).`;await load()}catch(error){try{await provisionApp?.auth().signOut()}catch(_){};hint.textContent=error.code==='auth/email-already-in-use'?'Diese Zugang-ID ist bereits vergeben.':'Zugang konnte nicht angelegt werden: '+error.message}}
 function slotStart(date,timeOrNull){return timeOrNull?date+'T'+timeOrNull+':00':date+'T00:00:00'}
+const today=()=>new Date().toISOString().slice(0,10);
 async function seed(){
   if(!admin())return;
   const t=team();
@@ -288,14 +298,14 @@ async function seed(){
   t.players.forEach(name=>batch.set(store.collection('roster_entries').doc(prefix+uid(name)),{season_id:activeTeam,full_name:name,role:'player',active:true,profile_id:null,positions:[]},{merge:true}));
   t.coaches.forEach(name=>batch.set(store.collection('roster_entries').doc(prefix+uid(name)),{season_id:activeTeam,full_name:name,role:'coach',active:true,profile_id:name==='Berk-Can Çelebi'?me.uid:null,positions:[]},{merge:true}));
   t.games.forEach((g,i)=>{const [date,opponent,location,home,gameTime,note]=g, id=prefix+'game-'+String(i+1).padStart(2,'0'), timeTbd=!gameTime, start=slotStart(date,gameTime);
-    batch.set(store.collection('events').doc(id),{season_id:activeTeam,type:'game',starts_at:start,meeting_at:timeTbd?null:start,time_tbd:timeTbd,opponent,location,home,schedule_note:note||null,schedule_source:t.scheduleSource,schedule_verified_at:'2026-08-08'},{merge:true});
+    batch.set(store.collection('events').doc(id),{season_id:activeTeam,type:'game',starts_at:start,meeting_at:timeTbd?null:start,time_tbd:timeTbd,opponent,location,home,schedule_note:note||null,schedule_source:t.scheduleSource,schedule_verified_at:today()},{merge:true});
     batch.set(store.collection('duty_assignments').doc(id+'-kit-bag'),{season_id:activeTeam,event_id:id,category:'kit_bag',assigned_to:null,assigned_name:null,status:'open',claimed_at:null,confirmed_at:null},{merge:true});
   });
-  t.trainings.forEach((tr,i)=>{const [date,trTime,location]=tr;batch.set(store.collection('events').doc(prefix+'training-'+String(i+1).padStart(2,'0')),{season_id:activeTeam,type:'training',starts_at:slotStart(date,trTime),location,home:true,schedule_source:t.scheduleSource,schedule_verified_at:'2026-08-08'},{merge:true})});
+  t.trainings.forEach((tr,i)=>{const [date,trTime,location]=tr;batch.set(store.collection('events').doc(prefix+'training-'+String(i+1).padStart(2,'0')),{season_id:activeTeam,type:'training',starts_at:slotStart(date,trTime),location,home:true,schedule_source:t.scheduleSource,schedule_verified_at:today()},{merge:true})});
   await batch.commit();await load();
 }
 async function syncScoretableSchedule(){
-  if(!admin())return;
+  if(!coach())return;
   const t=team(), prefix=activeTeam+'-';
   if(!confirm(`Die bisherigen Anschreiben-Testdaten für ${t.label} werden gelöscht und durch die Termine aus der Hallenliste ersetzt. Trikottaschen bleiben unverändert. Fortfahren?`))return;
   const batch=store.batch(), oldDutyIds=new Set(duties.filter(d=>d.category!=='kit_bag').map(d=>d.id));
@@ -304,7 +314,7 @@ async function syncScoretableSchedule(){
   dutyHistory.filter(h=>oldDutyIds.has(h.duty_id)||['scorer','shotclock','timekeeper'].includes(h.category)).forEach(h=>batch.delete(store.collection('duty_history').doc(h.id)));
   t.scoreTable.forEach((item,index)=>{
     const [date,clock,homeTeam,opponent,group,needsConfirmation,note]=item, eventId=prefix+'scoretable-'+String(index+1).padStart(2,'0');
-    batch.set(store.collection('events').doc(eventId),{season_id:activeTeam,type:'scoretable',starts_at:date+'T'+clock+':00',location:'Sportvereinszentrum, Leonberg',home:true,team:homeTeam,opponent,assignee_group:group,needs_confirmation:needsConfirmation,schedule_note:note||null,schedule_source:t.scheduleSource,schedule_verified_at:'2026-08-08'});
+    batch.set(store.collection('events').doc(eventId),{season_id:activeTeam,type:'scoretable',starts_at:date+'T'+clock+':00',location:'Sportvereinszentrum, Leonberg',home:true,team:homeTeam,opponent,assignee_group:group,needs_confirmation:needsConfirmation,schedule_note:note||null,schedule_source:t.scheduleSource,schedule_verified_at:today()});
     ['scorer','shotclock','timekeeper'].forEach(category=>batch.set(store.collection('duty_assignments').doc(eventId+'-'+category),{season_id:activeTeam,event_id:eventId,category,assigned_to:null,assigned_name:null,status:'open',claimed_at:null,confirmed_at:null}));
   });
   try{await batch.commit();await load();alert('Die Anschreiben-Termine wurden übernommen.')}catch(error){alert('Die Anschreiben-Termine konnten nicht gespeichert werden: '+error.message)}
